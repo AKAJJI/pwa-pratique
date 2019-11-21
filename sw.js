@@ -1,4 +1,4 @@
-const cacheName = 'veille-techno'+ '1.1';
+const cacheName = 'veille-techno'+ '1.2';
 console.log("hello depuis le service worker");
 self.addEventListener('install', (evt) => {
     console.log(`sw installé à ${new Date().toLocaleTimeString()}`);
@@ -27,13 +27,13 @@ self.addEventListener('activate', (evt) => {
 
 
 self.addEventListener('fetch', (evt) => {
-    if(!navigator.onLine){
+   if(!navigator.onLine){
         const headers = {headers :{ 'Content-Type': 'text/html;charset=utf-8'}};
         evt.respondWith(new Response('<h1>Pas de connexion internet</h1><div>Application en mode dégradé.Veuillez nous connecter</div>',headers));
     }
     console.log('sw intercepte la requête suivante via fetch',evt);
     console.log('url interceptée',evt.request.url);
-    //4.7 : Recuperer les reponses depuis le cache
+    /*//4.7 : Recuperer les reponses depuis le cache
 
     evt.respondWith(
         caches.match(evt.request)
@@ -43,5 +43,38 @@ self.addEventListener('fetch', (evt) => {
                 }
                 return fetch(evt.request);
             })
+    );*/
+     // 5.1 Stratégie : cache only with network callback
+     evt.respondWith(
+    
+        caches.match(evt.request)
+            .then(cachedResponse => {   
+                if (cachedResponse) {
+               		// identification de la requête trouvée dans le cache
+                    console.log("url depuis le cache", evt.request.url);
+                    return cachedResponse;
+                }
+ 
+                // 5.1 Stratégie de cache
+                return fetch(evt.request).then(
+                    // On récupère la requête
+                    function(newResponse) {
+                    	// identification de la requête ajoutée au cache
+                        console.log("url depuis le réseau et mise en cache", evt.request.url);
+                        
+                        // Accès au cache
+                        caches.open(cacheName).then(
+                            function(cache){
+                                // ajout du résultat de la requête au cache
+                                cache.put(evt.request, newResponse);
+                            }
+                        );
+                        // Utilisation de clone car on ne peut utiliser qu'une fois la réponse
+                        return newResponse.clone();
+                    }
+                )
+            }
+        )
     );
+
 })
